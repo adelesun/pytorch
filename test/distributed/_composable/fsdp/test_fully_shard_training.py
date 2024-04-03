@@ -903,11 +903,11 @@ class TestFullyShard2DTraining(FSDPTest):
         model = MLPStack(mlp_dim)
         ref_model = copy.deepcopy(model).cuda()
         replicate(ref_model, device_ids=[self.rank], process_group=dp_pg)
-        ref_optim = torch.optim.Adam(ref_model.parameters(), lr=1e-2)
+        ref_optim = torch.optim.Adam(ref_model.parameters(), lr=1e-2, foreach=False)
         model.parallelize(
             tp_mesh, dp_mesh, use_activation_checkpointing, reshard_after_forward
         )
-        optim = torch.optim.Adam(model.parameters(), lr=1e-2)
+        optim = torch.optim.Adam(model.parameters(), lr=1e-2, foreach=False)
 
         torch.manual_seed(42 + dp_pg.rank() + 1)
         device = torch.device("cuda")
