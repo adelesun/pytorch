@@ -1840,17 +1840,17 @@ def are_strides_like_channels_last(
             min *= shape[d]
     return True
 
-debug 2d print channels last torch.channels_last torch.channels_last_3d
-DEBUG, are_strides_like_channels_last, ndim 4
-DEBUG, are_strides_like_channels_last, strides (48, 1, 12, 3)
-DEBUG, are_strides_like_channels_last, shape torch.Size([2, 3, 4, 4])
+# debug 2d print channels last torch.channels_last torch.channels_last_3d
+# DEBUG, are_strides_like_channels_last, ndim 4
+# DEBUG, are_strides_like_channels_last, strides (48, 1, 12, 3)
+# DEBUG, are_strides_like_channels_last, shape torch.Size([2, 3, 4, 4])
 
 
-DEBUG, are_strides_like_channels_last, ndim 5
-DEBUG, are_strides_like_channels_last, strides (192, 64, 16, 4, 1)
-DEBUG, are_strides_like_channels_last, shape torch.Size([2, 3, 4, 4, 4])
+# DEBUG, are_strides_like_channels_last, ndim 5
+# DEBUG, are_strides_like_channels_last, strides (192, 64, 16, 4, 1)
+# DEBUG, are_strides_like_channels_last, shape torch.Size([2, 3, 4, 4, 4])
 
-64*3 = 192
+# 64*3 = 192
 
 def suggest_memory_format(x: TensorLikeType) -> torch.memory_format:
     if x.layout != torch.strided:
@@ -1906,7 +1906,7 @@ def get_aten_op(fn: Callable, name: str):
     module = fn.__module__
     prefix = "torch._refs"
     assert module.startswith(prefix)
-    module = module[len(prefix) :]
+    module = module[len(prefix):]
     # We want to go from .special / .nn.functional
     # to special and special_ / nn_functional_
     if module:
