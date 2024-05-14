@@ -226,7 +226,14 @@
 #
 #   USE_PRIORITIZED_TEXT_FOR_LD
 #      Uses prioritized text form cmake/prioritized_text.txt for LD
+#
+#   BUILD_LIBTORCH_WHL
+#      Builds libtorch.so and its dependencies as a wheel
+#
+#   BUILD_PYTORCH_USING_LIBTORCH_WHL
+#      Builds pytorch as a wheel using libtorch.so from a seperate wheel [not supported yet]
 
+import os
 import sys
 
 if sys.platform == "win32" and sys.maxsize.bit_length() == 31:
@@ -235,8 +242,16 @@ if sys.platform == "win32" and sys.maxsize.bit_length() == 31:
     )
     sys.exit(-1)
 
-import os
 import platform
+
+BUILD_LIBTORCH_WHL = os.getenv("BUILD_LIBTORCH_WHL", "0") == "1"
+BUILD_PYTORCH_USING_LIBTORCH_WHL = False
+
+# set up appropriate env variables
+if BUILD_LIBTORCH_WHL:
+    # Set up environment variables for ONLY building libtorch.so and not libtorch_python.so
+    # functorch is not supported without python
+    os.environ["BUILD_FUNCTORCH"] = "OFF"
 
 python_min_version = (3, 8, 0)
 python_min_version_str = ".".join(map(str, python_min_version))
@@ -355,7 +370,10 @@ cmake_python_include_dir = sysconfig.get_path("include")
 ################################################################################
 # Version, create_version_file, and package_name
 ################################################################################
-package_name = os.getenv("TORCH_PACKAGE_NAME", "torch")
+
+DEFAULT_PACKAGE_NAME = "libtorch" if BUILD_LIBTORCH_WHL else "torch"
+
+package_name = os.getenv("TORCH_PACKAGE_NAME", DEFAULT_PACKAGE_NAME)
 package_type = os.getenv("PACKAGE_TYPE", "wheel")
 version = get_torch_version()
 report(f"Building wheel {package_name}-{version}")
@@ -482,6 +500,8 @@ def build_deps():
 
     check_submodules()
     check_pydep("yaml", "pyyaml")
+    build_python = not BUILD_LIBTORCH_WHL
+
     build_python = not BUILD_LIBTORCH_WHL
 
     build_caffe2(
@@ -977,6 +997,7 @@ def configure_extension_build():
 
     main_compile_args = []
     main_libraries = ["torch_python"]
+
     main_link_args = []
     main_sources = ["torch/csrc/stub.c"]
 
@@ -1128,7 +1149,6 @@ def configure_extension_build():
             "default = torch.distributed.elastic.multiprocessing:DefaultLogsSpecs",
         ],
     }
-
     return extensions, cmdclass, packages, entry_points, extra_install_requires
 
 
@@ -1152,6 +1172,32 @@ def print_box(msg):
     for l in lines:
         print("|{}{}|".format(l, " " * (size - len(l))))
     print("-" * (size + 2))
+
+
+def rename_torch_packages(package_list):
+    """
+    Create a dictionary from a list of package names, renaming packages where
+    the top-level package is 'torch' to 'libtorch'.
+
+    Args:
+        package_list (list of str): The list of package names.
+
+    Returns:
+        dict: A dictionary where keys are the package names with 'torch' replaced by 'libtorch',
+              and values are the original package names, only including those where the
+              top-level name is 'torch'.
+    """
+    result = {}
+    for package in package_list:
+        # Split the package name by dots to handle subpackages or modules
+        parts = package.split(".")
+        # Check if the top-level package is 'torch'
+        if parts[0] == "torch":
+            # Replace 'torch' with 'libtorch' in the top-level package name
+            new_key = "libtorch" + package[len("torch") :]
+            result[new_key] = package
+
+    return result
 
 
 def main():
@@ -1415,6 +1461,7 @@ def main():
                 "lib/*.lib",
             ]
         )
+
     if get_cmake_cache_vars()["BUILD_CAFFE2"]:
         torch_package_data.extend(
             [
